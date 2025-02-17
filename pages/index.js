@@ -29,11 +29,11 @@ const Home = () => {
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [notification, setNotification] = useState('');
+  const [warning, setWarning] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -46,19 +46,18 @@ const Home = () => {
     // Clear previous errors and notifications
     setError('');
     setNotification('');
+    setWarning('');
     setIsLoading(true);
 
     try {
       // Check for sensitive content with the new format
       const sensitiveCheck = openAIService.checkForSensitiveContent(message);
       if (sensitiveCheck.hasSensitiveContent) {
-        setError(sensitiveCheck.reason);
-        setIsLoading(false);
-        return;
+        setWarning(sensitiveCheck.warning); // Set the warning, but don't block the message
       }
 
       // Check for meeting time issues
-      const meetingNotification = openAIService.checkMeetingTime(message);
+      const meetingNotification = await openAIService.checkMeetingTime(message);
       if (meetingNotification) {
         setNotification(meetingNotification);
       }
@@ -69,10 +68,7 @@ const Home = () => {
       setMessage('');
 
       // Get AI response
-      const aiResponse = await openAIService.fetchOpenAIResponse(
-        message,
-        'Extract context and generate a response.'
-      );
+      const aiResponse = await openAIService.fetchOpenAIResponse(message, 'Extract context and generate a response.');
 
       // Add AI response to chat
       setChatMessages(prevMessages => [
@@ -99,17 +95,15 @@ const Home = () => {
         Chat with OpenAI for message analysis.
       </h1>
 
-      <div
-        ref={chatContainerRef}
-        style={{
-          maxHeight: '70vh',
-          overflowY: 'scroll',
-          marginBottom: '10px',
-          padding: '10px',
-          background: '#fff',
-          borderRadius: '10px',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-        }}>
+      <div ref={chatContainerRef} style={{
+        maxHeight: '70vh',
+        overflowY: 'scroll',
+        marginBottom: '10px',
+        padding: '10px',
+        background: '#fff',
+        borderRadius: '10px',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+      }}>
         {chatMessages.map((msg, index) => (
           <ChatBubble key={index} message={msg.message} fromUser={msg.fromUser} />
         ))}
@@ -117,10 +111,10 @@ const Home = () => {
 
       <div style={{
         display: 'flex',
-        alignItems: 'center',  // Ensures both the textarea and button are aligned vertically
+        alignItems: 'center',
         borderTop: '1px solid #ddd',
         paddingTop: '10px',
-        paddingBottom: '10px', // Adjust bottom padding to ensure no extra spacing
+        paddingBottom: '10px',
       }}>
         <textarea
           value={message}
@@ -131,50 +125,35 @@ const Home = () => {
           placeholder={isLoading ? "Processing..." : "Type a message..."}
           style={{
             borderRadius: '20px',
-            padding: '10px',  // Padding inside the textarea, can adjust for spacing
+            padding: '10px',
             width: '100%',
             border: '1px solid #ddd',
             fontSize: '14px',
             marginRight: '10px',
             outline: 'none',
             opacity: isLoading ? 0.7 : 1,
-            resize: 'none', // Prevent resizing if you want to keep it fixed in size
-            display: 'flex',
-            alignItems: 'center', // Vertically align the text in the textarea
-            justifyContent: 'flex-start', // Align text to the left
-            lineHeight: '1.5',  // Optional: Adjust for text alignment within the textarea
+            resize: 'none',
           }}
         />
         <button
           onClick={handleMessageSend}
-          disabled={isLoading}
+          disabled={isLoading || !message.trim()}
           style={{
-            backgroundColor: isLoading ? '#ccc' : '#0084ff',
-            color: 'white',
+            background: '#0084ff',
             border: 'none',
+            padding: '10px',
             borderRadius: '50%',
-            padding: '12px',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center', // Ensures the button icon is vertically centered
-            justifyContent: 'center', // Centers the icon horizontally
+            cursor: isLoading || !message.trim() ? 'not-allowed' : 'pointer',
+            color: 'white',
+            fontSize: '18px',
           }}>
-          <FaPaperPlane size={20} />
+          <FaPaperPlane />
         </button>
       </div>
 
-
-      {error && (
-        <div style={{ color: 'red', textAlign: 'center', marginTop: '10px' }}>
-          {error}
-        </div>
-      )}
-
-      {notification && (
-        <div style={{ color: 'orange', textAlign: 'center', marginTop: '10px' }}>
-          {notification}
-        </div>
-      )}
+      {warning && <div style={{ color: 'orange', marginTop: '10px' }}><strong>Warning: </strong>{warning}</div>}
+      {notification && <div style={{ color: 'green', marginTop: '10px' }}><strong>Safety Notification: </strong>{notification}</div>}
+      {error && <div style={{ color: 'red', marginTop: '10px' }}><strong>Error: </strong>{error}</div>}
     </div>
   );
 };
