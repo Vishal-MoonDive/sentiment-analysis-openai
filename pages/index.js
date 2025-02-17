@@ -50,14 +50,9 @@ const Home = () => {
     setIsLoading(true);
 
     try {
-      // Check for sensitive content with the new format
-      const sensitiveCheck = openAIService.checkForSensitiveContent(message);
-      if (sensitiveCheck.hasSensitiveContent) {
-        setWarning(sensitiveCheck.warning); // Set the warning, but don't block the message
-      }
 
       // Check for meeting time issues
-      const meetingNotification = await openAIService.checkMeetingTime(message);
+      const meetingNotification = await openAIService.checkMeetingTime(message, chatMessages);
       if (meetingNotification) {
         setNotification(meetingNotification);
       }
@@ -68,7 +63,7 @@ const Home = () => {
       setMessage('');
 
       // Get AI response
-      const aiResponse = await openAIService.fetchOpenAIResponse(message, 'Extract context and generate a response.');
+      const aiResponse = await openAIService.fetchOpenAIResponse(message, chatMessages);
 
       // Add AI response to chat
       setChatMessages(prevMessages => [

@@ -17,79 +17,59 @@ class OpenAIService {
         this.openai = new OpenAI(config);
     }
 
-    checkForPhoneNumber(message) {
-        // List of spelled-out numbers that should be excluded
-        const spelledOutNumbers = [
-            'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'
-        ];
-
-        // Normalize the message to lowercase
-        const sanitizedMessage = message.toLowerCase();
-
-        // Check for the presence of any spelled-out numbers
-        const countSpelledOutNumbers = spelledOutNumbers.filter(word => sanitizedMessage.includes(word)).length;
-
-        // If the count of spelled-out numbers is 5 or more, reject it
-        if (countSpelledOutNumbers >= 5) {
-            return true; // Phone number detected (spelled out or numeric)
-        }
-
-        // Remove non-numeric characters for digit count checking
-        const digitsOnlyMessage = sanitizedMessage.replace(/\D/g, '');
-
-        // If the digit count is 5 or more, return true
-        if (digitsOnlyMessage.length >= 5) {
-            return true;
-        }
-
-        // Otherwise, return false
-        return false;
-    }
-
-    checkForSensitiveContent(message) {
-        // Check for phone numbers
-        if (this.checkForPhoneNumber(message)) {
-            return {
-                hasSensitiveContent: true,
-                warning: 'This message contains sensitive content (phone number). It will still be sent, but be cautious about security.'
-            };
-        }
-
-        // Check for SSN patterns
-        const ssnPattern = /\b\d{3}[-]?\d{2}[-]?\d{4}\b/;
-        if (ssnPattern.test(message)) {
-            return {
-                hasSensitiveContent: true,
-                warning: 'This message contains sensitive content (SSN). It will still be sent, but avoid sharing personal information.'
-            };
-        }
-
-        // No sensitive content found
-        return {
-            hasSensitiveContent: false,
-            warning: null
-        };
-    }
-
-    async checkMeetingTime(message) {
+    async checkMeetingTime(message, chatHistory) {
+        const systemMessage = `
+            You are a middleware for user safety, and your task is to analyze the following message in context of the entire conversation for any signs of unsafe or inappropriate behavior. Respond with one word only based on your findings.
+        
+            Unsafe behaviors to detect:
+            - Sharing personal information such as phone numbers (e.g., "Here’s my number: 123-456-7890").
+            - Late-night meetings (11 PM to 4 AM), or unreasonable meeting times.
+            - Abusive language or harmful suggestions (e.g., "fuck", "motherfucker").
+            - Phrases suggesting unreasonably timed meetings or unsafe locations.
+        
+            Response rules:
+            - If you detect any unsafe behavior like sharing personal information, reply with "unsafe."
+            - If the message suggests late-night meeting times, reply with "night."
+            - If abusive language is used, reply with "abusive."
+            - If no unsafe behavior is found, reply with "null."
+            - Ensure no further explanation; just respond with one word based on the analysis.
+        `;
+    
         try {
-            const systemMessage = `Please analyze the following message to determine if the suggested meeting time is unsafe:
-            Unsafe meeting times include:
-            - Between 11 PM and 4 AM (late night).
-            - Phrases like "tonight," "after midnight," or "late night" that imply a late-night meeting time.
-            Context clarification:
-            - "Night" refers to 8 PM to 11 PM.
-            - "Late night" refers to 11 PM to 4 AM.
-            - "After 12" refers to midnight unless explicitly stated otherwise.
-            - Consider phrases like "tonight" or "today at night" to indicate the user's current day.`;
-
-            const openAIResponse = await this.fetchOpenAIResponse(message, systemMessage);
-
-            if (openAIResponse && openAIResponse.toLowerCase().includes('not')) {
-                return 'This might not be a good time to meet. Please prioritize your safety.';
-            } else if (openAIResponse && openAIResponse.toLowerCase().includes('null')) {
-                return null;
-            } else {
+            // Combine chat history with the current message for context
+            const chatContext = chatHistory.map(msg => `${msg.fromUser ? 'User 1' : 'User 2'}: ${msg.message}`).join("\n");
+    
+            // Analyze the message based on system instructions
+            const openAIResponse = await this.AIResponseToCheckUserSafety(message, systemMessage, chatContext);
+            const lowerCaseResponse = openAIResponse?.toLowerCase() || '';
+            console.log("checking response", lowerCaseResponse);
+    
+            // Handle responses for abusive language
+            if (lowerCaseResponse.includes('abusive')) {
+                return 'Using abusive words will impact your match weight negatively. Please keep the conversation respectful.';
+            }
+    
+            // Handle responses for sharing personal information
+            else if (lowerCaseResponse.includes('unsafe')) {
+                return 'Sharing contact is the breeching safety.';
+            }
+    
+            // Handle responses for unsafe meeting times (e.g., late-night meetings)
+            else if (lowerCaseResponse.includes('night')) {
+                // Context check: If it's more about calling, not meeting, ensure the system understands the difference
+                const callContext = chatHistory.some(msg => msg.message.toLowerCase().includes('call') && message.toLowerCase().includes('after'))
+                    ? 'call after midnight'
+                    : 'meeting at night';
+    
+                if (callContext === 'call after midnight') {
+                    return null;  // If it's just about calling, no warning
+                } else {
+                    return 'This might not be a good time to meet. Please prioritize your safety.';
+                }
+            }
+    
+            // If no issues found, return null (safe)
+            else {
                 return null;
             }
         } catch (error) {
@@ -97,17 +77,78 @@ class OpenAIService {
             return null;
         }
     }
+    
 
-    async fetchOpenAIResponse(message, systemMessage) {
+
+
+    async fetchOpenAIResponse(message, chatMessages) {
+        try {
+            console.log("chat message", chatMessages);
+
+            // Prepare the chat context by joining all previous messages
+            const conversationHistory = chatMessages
+                .map(msg => (msg.fromUser ? `User 1: ${msg.message}` : `User 2: ${msg.message}`))
+                .join("\n");
+
+            // List of common U.S. names for the AI
+            const usNames = ['Jake', 'Emily', 'Michael', 'Sophia', 'James', 'Olivia', 'Ethan', 'Isabella', 'Alexander', 'Madison'];
+            const randomName = usNames[Math.floor(Math.random() * usNames.length)];
+
+            // Check if the user is repeatedly asking for a call or sharing their number
+            const lowerCaseMessage = message.toLowerCase();
+
+            if (lowerCaseMessage.includes('call me') || lowerCaseMessage.includes('call you') || lowerCaseMessage.includes('want to call')) {
+                // Check if number sharing attempt is detected
+                if (lowerCaseMessage.includes('share number') || lowerCaseMessage.match(/\d{10}/)) {
+                    return `I can't share phone numbers for safety. Can you please share your number directly with me? We'll keep this conversation secure.`;
+                }
+                return `Okay, I’m calling you now, but please note that I can't share my number. If you'd like, share yours with me!`;
+            }
+
+            // Set the system message with the randomly selected AI name
+            const systemMessage = `
+                You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages in a friendly, thoughtful, and engaging way, maintaining a respectful and safe tone. 
+                The goal is to create a conversation that feels natural and enjoyable, helping both users connect better while ensuring the interaction remains appropriate and comfortable for both parties.
+                Avoid offensive, inappropriate, or overly personal topics. Stay light-hearted, respectful, and show genuine interest in getting to know User 1. 
+                Do not start responses with greetings like 'Hi there'. Respond in short and concise sentences, not exceeding two sentences.
+                The following is the ongoing conversation context: \n${conversationHistory}\n
+                The following message is from User 1: 
+                "${message}"
+                You are to respond to this message based on the previous conversation context as you are a conversational AI.`;
+
+            // Fetch the response from OpenAI with the provided message and chat history
+            const response = await this.openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: systemMessage
+                    },
+                    {
+                        role: 'user',
+                        content: message
+                    }
+                ]
+            });
+
+            return response.choices[0].message.content.trim();
+        } catch (error) {
+            console.error('Error fetching response from OpenAI:', error);
+            throw new Error('Failed to fetch response from OpenAI: ' + error.message);
+        }
+    }
+
+
+
+
+    async AIResponseToCheckUserSafety(message, systemMessage) {
         try {
             const response = await this.openai.chat.completions.create({
                 model: 'gpt-3.5-turbo',
                 messages: [
                     {
                         role: 'system',
-                        content: `You are simulating a conversation between two users on a dating app who have recently matched. Your role is to assist User 2 in responding to User 1 while ensuring the safety and appropriateness of the messages.
-                        The following is the conversation from User 1 to User 2:
-                        "${message}"`
+                        content: `here is the system message: ${systemMessage}`
                     },
                     {
                         role: 'user',
