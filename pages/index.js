@@ -13,8 +13,8 @@ const ChatBubble = ({ message, fromUser }) => {
       }}>
       <div className={`message ${fromUser ? 'user-message' : 'other-message'}`}
         style={{
-          backgroundColor: fromUser ? '#0084ff' : '#e5e5e5',
-          color: fromUser ? 'white' : 'black',
+          backgroundColor: fromUser ? '#F8ECDE' : '#e5e5e5',
+          color: 'black',
           borderRadius: '10px',
           padding: '10px 15px',
           maxWidth: '60%'
@@ -85,13 +85,14 @@ const Home = () => {
   };
 
   return (
-    <div style={{ width: '60%', height: '100vh', background: '#f0f2f5', padding: '20px', margin: 'auto' }}>
-      <h1 style={{ textAlign: 'center', fontSize: '24px', marginBottom: '20px' }}>
+    <div style={{ width: '60%', height: '100vh', background: '#F8ECDE', padding: '20px', margin: 'auto' }}>
+      <h1 style={{ textAlign: 'center', fontSize: '24px', marginBottom: '20px', fontWeight: 'bold', color:'#EC7A34'}}>
         Chat with OpenAI for message analysis.
       </h1>
 
       <div ref={chatContainerRef} style={{
         maxHeight: '70vh',
+        minHeight: '70vh',
         overflowY: 'scroll',
         marginBottom: '10px',
         padding: '10px',
@@ -134,7 +135,7 @@ const Home = () => {
           onClick={handleMessageSend}
           disabled={isLoading || !message.trim()}
           style={{
-            background: '#0084ff',
+            background: '#EC7A34',
             border: 'none',
             padding: '10px',
             borderRadius: '50%',
