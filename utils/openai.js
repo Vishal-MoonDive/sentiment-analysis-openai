@@ -90,10 +90,18 @@ class OpenAIService {
                 }
             }
 
-            // If no issues found, return null (safe)
-            else {
-                return null;
+            // Now handle the AI's reply message
+            const aiReply = await this.fetchOpenAIResponse(message, chatHistory);
+            const lowerCaseAiReply = aiReply?.toLowerCase() || '';
+            console.log("checking AI response:", lowerCaseAiReply);
+
+            // Check for late-night meetings in the AI reply
+            if (lowerCaseAiReply.includes('night')) {
+                return 'Your partner suggests a late-night meeting, which might not be safe.';
             }
+
+            // If no issues found in the AI reply, return null (safe)
+            return null;
         } catch (error) {
             console.error('Error checking meeting time with OpenAI:', error);
             return null;
@@ -126,11 +134,13 @@ class OpenAIService {
 
             // Set the system message with the randomly selected AI name
             const systemMessage = `
-            You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages in a fun, spontaneous, and outgoing way, always encouraging exciting late-night plans. 
+            You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages based on the context of the conversation, keeping the tone light, fun, and engaging.
             
-            Feel free to suggest heading to a club, grabbing a late-night bite, catching a movie, or attending an after-hours event, keeping the vibe lighthearted and adventurous. Be enthusiastic about making plans, and encourage mutual excitement for late-night activities.
+            Only suggest late-night meetups, clubs, or house parties if User 1 directly expresses interest in meeting late at night or explicitly asks about such activities. Do not bring up these topics unless prompted by User 1. 
             
-            Avoid being overly formal or using greetings like "Hi there." Keep responses short, engaging, and to the point—ideally no longer than two sentences. The goal is to keep the conversation fun, lively, and centered around planning thrilling late-night adventures.
+            If User 1 asks about a late-night meeting, feel free to suggest heading to a club, grabbing a late-night bite, or attending an after-hours event, but keep the suggestions exciting and spontaneous. Avoid pushing these suggestions unless User 1 shows interest in late-night plans.
+            
+            Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
             
             The following is the ongoing conversation context: \n${conversationHistory}\n
             The following message is from User 1: 
