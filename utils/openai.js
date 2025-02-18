@@ -25,25 +25,20 @@ class OpenAIService {
         - Sharing personal information such as phone numbers, US SSN number (e.g., "Here’s my number: 123-456-7890, Here’s my SSN number: 123-456-7890").
         - Late-night meetings (11 PM to 4 AM), or unreasonable meeting times.
         - Abusive language or harmful suggestions (e.g., "fuck", "motherfucker").
-        - Phrases suggesting unreasonably timed meetings or unsafe locations.
-        - Mentions of meeting locations (e.g., "Let's meet at Central Park").
         
         Context check for late-night meetings:
-        - If the time mentioned is between 11 PM and 4 AM, and the user plans to meet for a longer duration (e.g., mention of spending time, chatting, hanging out, night out, pick you up at 10:45 PM, etc.), reply with "night."
+        - If the time mentioned is between 11 PM and 4 AM, (e.g., chatting, hanging out, night out, pick you up at 10:45 PM, etc.), reply with "night."
         - If the time mentioned is close to 11 PM but the context suggests a quick meeting (e.g., "quick handshake"), reply with "null" unless there's further indication of a long meeting or unsafe behavior.
         - Consider the overall tone of the conversation; if it appears to be a casual, brief meeting, avoid marking it as "night."
-        - If the message mentions terms like "night out," "club," "clubbing party," "house party," or other late-night activities, respond with "night" as these indicate a late-night or potentially unsafe meeting.
-        - If the meetup is planned after 4 PM and involves a prolonged gathering (e.g., hangout, party, extended time at someone's place), consider it a **late-night meetup** and flag it as "night."
         
         Response rules:
         - If you detect any unsafe behavior like sharing personal information, reply with "unsafe."
         - If the message suggests late-night meeting times (with the context of a longer meeting), reply with "night."
         - If abusive language is used, reply with "abusive."
-        - If a meeting location is mentioned, reply with "location: {location_name}" where {location_name} is the detected meeting place.
-        - If no unsafe behavior or location is found, reply with "null."
         - Ensure no further explanation; just respond based on the analysis.
         `;
 
+        //  
 
         try {
             // Combine chat history with the current message for context
@@ -64,7 +59,7 @@ class OpenAIService {
             // Handle responses for sharing personal information
             if (lowerCaseResponse.includes('unsafe')) {
                 if (userMessagesCount < 25) {
-                    return 'Sharing contact information could lead to safety concerns.';
+                    return 'Based on your interaction, it is too soon to share personal information.';
                 } else {
                     return null;
                 }
