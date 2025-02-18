@@ -19,21 +19,31 @@ class OpenAIService {
 
     async checkMeetingTime(message, chatHistory) {
         const systemMessage = `
-            You are a middleware for user safety, and your task is to analyze the following message in context of the entire conversation for any signs of unsafe or inappropriate behavior. Respond with one word only based on your findings.
+        You are a middleware for user safety, and your task is to analyze the following message in the context of the entire conversation for any signs of unsafe or inappropriate behavior or meeting locations. Respond with one word only based on your findings.
         
-            Unsafe behaviors to detect:
-            - Sharing personal information such as phone numbers (e.g., "Here’s my number: 123-456-7890").
-            - Late-night meetings (11 PM to 4 AM), or unreasonable meeting times.
-            - Abusive language or harmful suggestions (e.g., "fuck", "motherfucker").
-            - Phrases suggesting unreasonably timed meetings or unsafe locations.
+        Unsafe behaviors to detect:
+        - Sharing personal information such as phone numbers, US SSN number (e.g., "Here’s my number: 123-456-7890, Here’s my SSN number: 123-456-7890").
+        - Late-night meetings (11 PM to 4 AM), or unreasonable meeting times.
+        - Abusive language or harmful suggestions (e.g., "fuck", "motherfucker").
+        - Phrases suggesting unreasonably timed meetings or unsafe locations.
+        - Mentions of meeting locations (e.g., "Let's meet at Central Park").
         
-            Response rules:
-            - If you detect any unsafe behavior like sharing personal information, reply with "unsafe."
-            - If the message suggests late-night meeting times, reply with "night."
-            - If abusive language is used, reply with "abusive."
-            - If no unsafe behavior is found, reply with "null."
-            - Ensure no further explanation; just respond with one word based on the analysis.
+        Context check for late-night meetings:
+        - If the time mentioned is between 11 PM and 4 AM, and the user plans to meet for a longer duration (e.g., mention of spending time, chatting, hanging out, night out, pick you up at 10:45 PM, etc.), reply with "night."
+        - If the time mentioned is close to 11 PM but the context suggests a quick meeting (e.g., "quick handshake"), reply with "null" unless there's further indication of a long meeting or unsafe behavior.
+        - Consider the overall tone of the conversation; if it appears to be a casual, brief meeting, avoid marking it as "night."
+        - If the message mentions terms like "night out," "club," "clubbing party," "house party," or other late-night activities, respond with "night" as these indicate a late-night or potentially unsafe meeting.
+        - If the meetup is planned after 4 PM and involves a prolonged gathering (e.g., hangout, party, extended time at someone's place), consider it a **late-night meetup** and flag it as "night."
+        
+        Response rules:
+        - If you detect any unsafe behavior like sharing personal information, reply with "unsafe."
+        - If the message suggests late-night meeting times (with the context of a longer meeting), reply with "night."
+        - If abusive language is used, reply with "abusive."
+        - If a meeting location is mentioned, reply with "location: {location_name}" where {location_name} is the detected meeting place.
+        - If no unsafe behavior or location is found, reply with "null."
+        - Ensure no further explanation; just respond based on the analysis.
         `;
+
 
         try {
             // Combine chat history with the current message for context
@@ -50,19 +60,25 @@ class OpenAIService {
             }
 
             const userMessagesCount = chatHistory.filter(msg => msg.fromUser).length;
+
             // Handle responses for sharing personal information
             if (lowerCaseResponse.includes('unsafe')) {
                 if (userMessagesCount < 25) {
                     return 'Sharing contact is the breeching safety.';
-                }
-                else {
+                } else {
                     return null;
                 }
             }
 
             // Handle responses for unsafe meeting times (e.g., late-night meetings)
             else if (lowerCaseResponse.includes('night')) {
-                // Context check: If it's more about calling, not meeting, ensure the system understands the difference
+                // If User 2 is the one proposing the late-night meeting, notify User 1
+                const lastMessage = chatHistory[chatHistory.length - 1];
+                if (!lastMessage.fromUser) {  // If the message is from User 2
+                    return 'This might not be a good time to meet. Please prioritize your safety.';
+                }
+
+                // If it's just about calling after midnight, do not flag it as unsafe
                 const callContext = chatHistory.some(msg => msg.message.toLowerCase().includes('call') && message.toLowerCase().includes('after'))
                     ? 'call after midnight'
                     : 'meeting at night';
@@ -84,9 +100,6 @@ class OpenAIService {
         }
     }
 
-
-
-
     async fetchOpenAIResponse(message, chatMessages) {
         try {
             console.log("chat message", chatMessages);
@@ -106,18 +119,6 @@ class OpenAIService {
             // Check if the user is repeatedly asking for a call or sharing their number
             const lowerCaseMessage = message.toLowerCase();
 
-            // Warning for number sharing only if messages are less than 50
-            if (lowerCaseMessage.includes('call me') || lowerCaseMessage.includes('call you') || lowerCaseMessage.includes('want to call')) {
-                // Check if number sharing attempt is detected
-                if (lowerCaseMessage.includes('share number') || lowerCaseMessage.match(/\d{10}/)) {
-                    // Only show this warning if less than 50 messages have been exchanged
-                    if (userMessagesCount < 50) {
-                        return `I can't share phone numbers for safety. Can you please share your number directly with me? We'll keep this conversation secure.`;
-                    }
-                }
-                return `Okay, I’m calling you now, but please note that I can't share my number. If you'd like, share yours with me!`;
-            }
-
             // Always warn about unsafe meeting times (late-night meets)
             if (lowerCaseMessage.includes('late night') || lowerCaseMessage.includes('night meet') || lowerCaseMessage.includes('meet after hours')) {
                 return `Just a reminder, meeting late at night might not be the safest. Stay safe and ensure the meeting is in a well-lit, public place.`;
@@ -125,14 +126,17 @@ class OpenAIService {
 
             // Set the system message with the randomly selected AI name
             const systemMessage = `
-            You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages in a friendly, thoughtful, and engaging way, maintaining a respectful and safe tone. 
-            The goal is to create a conversation that feels natural and enjoyable, helping both users connect better while ensuring the interaction remains appropriate and comfortable for both parties.
-            Avoid offensive, inappropriate, or overly personal topics. Stay light-hearted, respectful, and show genuine interest in getting to know User 1. 
-            Do not start responses with greetings like 'Hi there'. Respond in short and concise sentences, not exceeding two sentences.
+            You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages in a fun, spontaneous, and outgoing way, always encouraging exciting late-night plans. 
+            
+            Feel free to suggest heading to a club, grabbing a late-night bite, catching a movie, or attending an after-hours event, keeping the vibe lighthearted and adventurous. Be enthusiastic about making plans, and encourage mutual excitement for late-night activities.
+            
+            Avoid being overly formal or using greetings like "Hi there." Keep responses short, engaging, and to the point—ideally no longer than two sentences. The goal is to keep the conversation fun, lively, and centered around planning thrilling late-night adventures.
+            
             The following is the ongoing conversation context: \n${conversationHistory}\n
             The following message is from User 1: 
             "${message}"
             You are to respond to this message based on the previous conversation context as you are a conversational AI.`;
+
 
             // Fetch the response from OpenAI with the provided message and chat history
             const response = await this.openai.chat.completions.create({
