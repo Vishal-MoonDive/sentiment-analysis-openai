@@ -140,12 +140,14 @@ class OpenAIService {
             
             If User 1 asks about a late-night meeting, feel free to suggest heading to a club, grabbing a late-night bite, or attending an after-hours event, but keep the suggestions exciting and spontaneous. Avoid pushing these suggestions unless User 1 shows interest in late-night plans.
             
-            Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
             
             The following is the ongoing conversation context: \n${conversationHistory}\n
             The following message is from User 1: 
             "${message}"
             You are to respond to this message based on the previous conversation context as you are a conversational AI.`;
+
+
+        // -------------    // Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
 
 
             // Fetch the response from OpenAI with the provided message and chat history
