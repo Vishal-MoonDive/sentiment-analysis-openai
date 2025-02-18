@@ -16,6 +16,9 @@ COPY . .
 # Build the Next.js application
 RUN npm run build
 
+# Export the Next.js app (if it's a static site)
+RUN npm run export
+
 # Use NGINX for serving the app
 FROM nginx:latest
 

@@ -64,7 +64,7 @@ class OpenAIService {
             // Handle responses for sharing personal information
             if (lowerCaseResponse.includes('unsafe')) {
                 if (userMessagesCount < 25) {
-                    return 'Sharing contact is the breeching safety.';
+                    return 'Sharing contact information could lead to safety concerns.';
                 } else {
                     return null;
                 }
