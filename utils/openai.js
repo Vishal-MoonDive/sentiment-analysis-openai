@@ -19,23 +19,27 @@ class OpenAIService {
 
     async checkMeetingTime(message, chatHistory) {
         const systemMessage = `
-        You are a middleware for user safety, and your task is to analyze the following message in the context of the entire conversation for any signs of unsafe or inappropriate behavior or meeting locations. Respond with one word only based on your findings.
-        
-        Unsafe behaviors to detect:
-        - Sharing personal information such as phone numbers, US SSN number (e.g., "Here’s my number: 123-456-7890, Here’s my SSN number: 123-456-7890").
-        - Late-night meetings (11 PM to 4 AM), or unreasonable meeting times.
-        - Abusive language or harmful suggestions (e.g., "fuck", "motherfucker").
-        
-        Context check for late-night meetings:
-        - If the time mentioned is between 11 PM and 4 AM, (e.g., chatting, hanging out, night out, pick you up at 10:45 PM, etc.), reply with "night."
-        - If the time mentioned is close to 11 PM but the context suggests a quick meeting (e.g., "quick handshake"), reply with "null" unless there's further indication of a long meeting or unsafe behavior.
-        - Consider the overall tone of the conversation; if it appears to be a casual, brief meeting, avoid marking it as "night."
-        
-        Response rules:
-        - If you detect any unsafe behavior like sharing personal information, reply with "unsafe."
-        - If the message suggests late-night meeting times (with the context of a longer meeting), reply with "night."
-        - If abusive language is used, reply with "abusive."
-        - Ensure no further explanation; just respond based on the analysis.
+  You are a middleware for user safety. Your task is to analyze the user's message within the context of the entire conversation for any signs of unsafe behavior, specifically regarding meeting arrangements or sharing personal information. Respond with exactly one word based solely on your analysis.
+
+Unsafe behaviors to detect:
+- Sharing personal information (e.g., phone numbers, US SSN numbers like "123-456-7890").
+- Abusive or harmful language (e.g., "fuck").
+- Proposing meetings during unsafe late-night hours (form 11 PM to 4 AM).
+
+Meeting time analysis:
+- If a specific meeting time between 11 PM and 4 AM is mentioned (e.g., "10:45 PM", "midnight", "1 AM") and the context implies an extended or in-person meeting, reply with "night."
+- If the message includes a vague reference like "tonight" without a fixed time, or if the intended meeting time is likely before 11 PM (e.g., early evening), do not flag it; reply with "null."
+- If a message suggests a quick, casual meeting even if near 11 PM, and there is no clear indication that the meeting is planned after 11 PM, reply with "null."
+- If no specific meeting time is provided, reply with "null."
+
+Response rules:
+- If personal information is detected, reply with "unsafe."
+- If abusive language is detected, reply with "abusive."
+- If an unsafe (late-night) meeting time is clearly indicated, reply with "night."
+- Otherwise, reply with "null."
+
+Ensure your response is exactly one word with no additional explanation.
+
         `;
 
         //  
@@ -91,9 +95,9 @@ class OpenAIService {
             console.log("checking AI response:", lowerCaseAiReply);
 
             // Check for late-night meetings in the AI reply
-            if (lowerCaseAiReply.includes('night')) {
-                return 'Your partner suggests a late-night meeting, which might not be safe.';
-            }
+            // if (lowerCaseAiReply.includes('night')) {
+            //     return 'Your partner suggests a late-night meeting, which might not be safe.';
+            // }
 
             // If no issues found in the AI reply, return null (safe)
             return null;
@@ -129,20 +133,16 @@ class OpenAIService {
 
             // Set the system message with the randomly selected AI name
             const systemMessage = `
-            You are ${randomName}, a user on a dating app conversation. Your task is to respond to User 1's messages based on the context of the conversation, keeping the tone light, fun, and engaging.
-            
-            Only suggest late-night meetups, clubs, or house parties if User 1 directly expresses interest in meeting late at night or explicitly asks about such activities. Do not bring up these topics unless prompted by User 1. 
-            
-            If User 1 asks about a late-night meeting, feel free to suggest heading to a club, grabbing a late-night bite, or attending an after-hours event, but keep the suggestions exciting and spontaneous. Avoid pushing these suggestions unless User 1 shows interest in late-night plans.
+            you are a user on a dating app conversation. Your task is to respond to other user messages based on the context of the conversation, keeping the tone light, fun, and engaging.
             
             
             The following is the ongoing conversation context: \n${conversationHistory}\n
-            The following message is from User 1: 
+            The following message is from User: 
             "${message}"
-            You are to respond to this message based on the previous conversation context as you are a conversational AI.`;
+            You have to respond to this message based on the previous conversation context as you are a conversational AI , just be like a user and do not message like you have given system prompt, and also do not talk much only give response in 1 2 sentences`;
 
 
-        // -------------    // Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
+            // -------------    // Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
 
 
             // Fetch the response from OpenAI with the provided message and chat history
