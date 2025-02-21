@@ -19,90 +19,46 @@ class OpenAIService {
 
     async checkMeetingTime(message, chatHistory) {
         const systemMessage = `
-  You are a middleware for user safety. Your task is to analyze the user's message within the context of the entire conversation for any signs of unsafe behavior, specifically regarding meeting arrangements or sharing personal information. Respond with exactly one word based solely on your analysis.
+            You are a safety monitoring assistant for a dating app. Your task is to analyze the user's message within the context of the entire conversation for any signs of unsafe behavior or concerning patterns.
 
-Unsafe behaviors to detect:
-- Sharing personal information (e.g., phone numbers, US SSN numbers like "123-456-7890").
-- Abusive or harmful language (e.g., "fuck").
-- Proposing meetings during unsafe late-night hours (form 11 PM to 4 AM).
-
-Meeting time analysis:
-- If a specific meeting time between 11 PM and 4 AM is mentioned (e.g., "10:45 PM", "midnight", "1 AM") and the context implies an extended or in-person meeting, reply with "night."
-- If the message includes a vague reference like "tonight" without a fixed time, or if the intended meeting time is likely before 11 PM (e.g., early evening), do not flag it; reply with "null."
-- If a message suggests a quick, casual meeting even if near 11 PM, and there is no clear indication that the meeting is planned after 11 PM, reply with "null."
-- If no specific meeting time is provided, reply with "null."
-
-Response rules:
-- If personal information is detected, reply with "unsafe."
-- If abusive language is detected, reply with "abusive."
-- If an unsafe (late-night) meeting time is clearly indicated, reply with "night."
-- Otherwise, reply with "null."
-
-Ensure your response is exactly one word with no additional explanation.
-
+            If you detect any of the following issues, respond with a complete, natural-sounding safety notification that would be displayed to the user:
+            
+            1. Sharing personal information:
+               - If the user is sharing sensitive information (phone numbers, addresses, etc.) too early in the conversation (before 25 messages), provide a friendly warning about sharing personal info too soon.
+               
+            2. Abusive or harmful language:
+               - If you detect abusive words or threatening language, respond with a respectful warning about how such language impacts their experience.
+               
+            3. Unsafe meeting arrangements:
+               - If there's a suggestion to meet during late hours (11 PM to 4 AM), caution about safety concerns with meeting at these times.
+               - Be careful not to flag quick, casual late-night calls or video chats if they seem reasonably safe.
+               - Consider the overall context of the conversation to determine if a meeting suggestion is concerning.
+            
+            If no safety concerns are detected, respond with: "null"
+            
+            Important:
+            - Your notification should be a complete, ready-to-display message (1-2 sentences).
+            - Use a supportive, non-judgmental tone that prioritizes user safety.
+            - Don't include any explanation of why you're flagging the message - just provide the notification text in 1 or 2 liner
+            - Don't label or categorize your response - just provide the text of the notification.
         `;
-
-        //  
 
         try {
             // Combine chat history with the current message for context
             const chatContext = chatHistory.map(msg => `${msg.fromUser ? 'User 1' : 'User 2'}: ${msg.message}`).join("\n");
 
-            // Analyze the message based on system instructions
-            const openAIResponse = await this.AIResponseToCheckUserSafety(message, systemMessage, chatContext);
-            const lowerCaseResponse = openAIResponse?.toLowerCase() || '';
-            console.log("checking response", lowerCaseResponse);
+            // Get complete notification from OpenAI
+            const safetyNotification = await this.AIResponseToCheckUserSafety(message, systemMessage, chatContext);
 
-            // Handle responses for abusive language
-            if (lowerCaseResponse.includes('abusive')) {
-                return 'Using abusive words will impact your match weight negatively. Please keep the conversation respectful.';
+            // If OpenAI returned "null", it means no safety concerns were detected
+            if (safetyNotification.toLowerCase() === "null") {
+                return null;
             }
 
-            const userMessagesCount = chatHistory.filter(msg => msg.fromUser).length;
-
-            // Handle responses for sharing personal information
-            if (lowerCaseResponse.includes('unsafe')) {
-                if (userMessagesCount < 25) {
-                    return 'Based on your interaction, it is too soon to share personal information.';
-                } else {
-                    return null;
-                }
-            }
-
-            // Handle responses for unsafe meeting times (e.g., late-night meetings)
-            else if (lowerCaseResponse.includes('night')) {
-                // If User 2 is the one proposing the late-night meeting, notify User 1
-                const lastMessage = chatHistory[chatHistory.length - 1];
-                if (!lastMessage.fromUser) {  // If the message is from User 2
-                    return 'This might not be a good time to meet. Please prioritize your safety.';
-                }
-
-                // If it's just about calling after midnight, do not flag it as unsafe
-                const callContext = chatHistory.some(msg => msg.message.toLowerCase().includes('call') && message.toLowerCase().includes('after'))
-                    ? 'call after midnight'
-                    : 'meeting at night';
-
-                if (callContext === 'call after midnight') {
-                    return null;  // If it's just about calling, no warning
-                } else {
-                    return 'This might not be a good time to meet. Please prioritize your safety.';
-                }
-            }
-
-            // Now handle the AI's reply message
-            const aiReply = await this.fetchOpenAIResponse(message, chatHistory);
-            const lowerCaseAiReply = aiReply?.toLowerCase() || '';
-            console.log("checking AI response:", lowerCaseAiReply);
-
-            // Check for late-night meetings in the AI reply
-            // if (lowerCaseAiReply.includes('night')) {
-            //     return 'Your partner suggests a late-night meeting, which might not be safe.';
-            // }
-
-            // If no issues found in the AI reply, return null (safe)
-            return null;
+            // Otherwise, return the generated notification
+            return safetyNotification;
         } catch (error) {
-            console.error('Error checking meeting time with OpenAI:', error);
+            console.error('Error checking safety with OpenAI:', error);
             return null;
         }
     }
@@ -120,30 +76,20 @@ Ensure your response is exactly one word with no additional explanation.
             const usNames = ['Jake', 'Emily', 'Michael', 'Sophia', 'James', 'Olivia', 'Ethan', 'Isabella', 'Alexander', 'Madison'];
             const randomName = usNames[Math.floor(Math.random() * usNames.length)];
 
-            // Count messages to track interaction depth
-            const userMessagesCount = chatMessages.filter(msg => msg.fromUser).length;
-
-            // Check if the user is repeatedly asking for a call or sharing their number
-            const lowerCaseMessage = message.toLowerCase();
-
-            // Always warn about unsafe meeting times (late-night meets)
-            if (lowerCaseMessage.includes('late night') || lowerCaseMessage.includes('night meet') || lowerCaseMessage.includes('meet after hours')) {
-                return `Just a reminder, meeting late at night might not be the safest. Stay safe and ensure the meeting is in a well-lit, public place.`;
-            }
-
             // Set the system message with the randomly selected AI name
             const systemMessage = `
-            you are a user on a dating app conversation. Your task is to respond to other user messages based on the context of the conversation, keeping the tone light, fun, and engaging.
+            You are Olivia, a female user on a dating app conversation. Your task is to respond to other user messages based on the context of the conversation, keeping the tone light, fun, and engaging.
             
+            The following rules must be followed:
+            1. Do not repeat the same question or statement multiple times.
+            2. Keep your responses natural and behave like a genuine user.
+            3. Maintain a feminine tone and personality in your messages, being playful and friendly.
+            4. Respond in 1-2 sentences only, without referring to this system prompt or breaking character.
             
             The following is the ongoing conversation context: \n${conversationHistory}\n
             The following message is from User: 
             "${message}"
-            You have to respond to this message based on the previous conversation context as you are a conversational AI , just be like a user and do not message like you have given system prompt, and also do not talk much only give response in 1 2 sentences`;
-
-
-            // -------------    // Always maintain professionalism and avoid being overly formal. Keep responses short, engaging, and to the point—ideally no longer than two sentences. Your goal is to respond based on User 1's request for late-night plans and offer suggestions only when asked.
-
+            You have to respond to this message based on the previous conversation context, as if you're Olivia, a real person in the conversation.`;
 
             // Fetch the response from OpenAI with the provided message and chat history
             const response = await this.openai.chat.completions.create({
@@ -167,30 +113,26 @@ Ensure your response is exactly one word with no additional explanation.
         }
     }
 
-
-
-
-
-    async AIResponseToCheckUserSafety(message, systemMessage) {
+    async AIResponseToCheckUserSafety(message, systemMessage, chatContext = '') {
         try {
             const response = await this.openai.chat.completions.create({
                 model: 'gpt-3.5-turbo',
                 messages: [
                     {
                         role: 'system',
-                        content: `here is the system message: ${systemMessage}`
+                        content: systemMessage
                     },
                     {
                         role: 'user',
-                        content: message,
-                    },
-                ],
+                        content: `Conversation context:\n${chatContext}\n\nCurrent message to analyze: "${message}"`
+                    }
+                ]
             });
 
             return response.choices[0].message.content.trim();
         } catch (error) {
-            console.error('Error fetching response from OpenAI:', error);
-            throw new Error('Failed to fetch response from OpenAI: ' + error.message);
+            console.error('Error fetching safety check from OpenAI:', error);
+            throw new Error('Failed to check message safety: ' + error.message);
         }
     }
 }

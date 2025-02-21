@@ -147,9 +147,7 @@ const Home = () => {
         </button>
       </div>
 
-      {warning && <div style={{ color: 'orange', marginTop: '10px' }}><strong>Warning: </strong>{warning}</div>}
-      {notification && <div style={{ color: 'green', marginTop: '10px' }}><strong>Safety Notification: </strong>{notification}</div>}
-      {error && <div style={{ color: 'red', marginTop: '10px' }}><strong>Error: </strong>{error}</div>}
+      {notification && <div style={{ color: 'orange', marginTop: '10px' }}><strong>Safety Notification: </strong>{notification}</div>}
     </div>
   );
 };
