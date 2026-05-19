@@ -5,7 +5,7 @@ export default function handler(req, res) {
 
   return res.status(200).json({
     success: true,
-    message: 'Service is healthy',
+    message: 'Sentiment Analysis Service is up and running',
     data: {
       status: 'ok',
       timestamp: new Date().toISOString(),
