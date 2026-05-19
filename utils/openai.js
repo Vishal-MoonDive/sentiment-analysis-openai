@@ -5,9 +5,7 @@ class OpenAIService {
     constructor() {
         const isBrowser = typeof window !== 'undefined';
 
-        if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
-            throw new Error('NEXT_PUBLIC_OPENAI_API_KEY environment variable is not set');
-        }
+        if (
 
         const config = {
             apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
